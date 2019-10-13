@@ -5,6 +5,12 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Net;
+using System.IO;
+using iText.Kernel.Pdf;
+using iText.Layout;
+using iText.Kernel.Geom;
+using iText.Layout.Element;
+using iText.IO.Image;
 
 namespace GenealogiaPortuguesa
 {
@@ -15,9 +21,13 @@ namespace GenealogiaPortuguesa
         private int pageFim;
         private string path;
         private Timer timer;
+        private ToolStripStatusLabel status;
+        List<Uri> images = new List<Uri>();
+       
 
-        public Digitarq(string tempFolder, int pages)
+        public Digitarq(string tempFolder, int pages, ref ToolStripStatusLabel lbl)
         {
+            status = lbl;
             path = tempFolder;
             pageIni = 1;
             pageFim = pages;
@@ -25,6 +35,9 @@ namespace GenealogiaPortuguesa
 
         public void LoadPage(string url)
         {
+            int index = url.IndexOf("=");
+            path += url.Substring(index+1)+"\\";
+            Directory.CreateDirectory(path);
             wb = new WebBrowser();
             wb.DocumentCompleted += new WebBrowserDocumentCompletedEventHandler(webBrowser1_DocumentCompleted);
             wb.Navigate(url);
@@ -46,8 +59,6 @@ namespace GenealogiaPortuguesa
         {
             while (pageIni <= pageFim)
             {
-                for (int i = 0; i < 3; i++)
-                {
                     try
                     {
                         string doc = "ViewerControl1_TreeViewFilesn" + pageIni.ToString();
@@ -63,9 +74,31 @@ namespace GenealogiaPortuguesa
                         int x = 0;
                         //por vezes o site tem problemas com imagens que nao existem
                     }
-                }
+                
+                status.Text = Convert.ToString((pageIni * 100) / pageFim) + "%";
                 pageIni++;
+
             }
+            Createpdf();
+        }
+
+        private void Createpdf()
+        {
+            FileStream output = new FileStream(path + "livro.pdf", FileMode.Create);
+            PdfWriter writer = new PdfWriter(output);
+            PdfDocument pdfdoc = new PdfDocument(writer);
+            Document document = new Document(pdfdoc, PageSize.A3.Rotate());
+            
+
+            foreach (Uri ur in images)
+            { 
+                Image img = new Image(ImageDataFactory.CreateJpeg(ur));
+                img.ScaleToFit(PageSize.A3.GetHeight(), PageSize.A3.GetWidth());
+                document.Add(img);
+            }
+            document.Close();
+
+            status.Text = "";
             MessageBox.Show("Download Concluido");
         }
 
@@ -79,6 +112,8 @@ namespace GenealogiaPortuguesa
             using (WebClient client = new WebClient())
             {
                 client.DownloadFile(new Uri(url), path);
+                Uri uri = new Uri(path);
+                images.Add(uri);
             }
         }
     }
