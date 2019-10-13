@@ -11,49 +11,67 @@ namespace GenealogiaPortuguesa
     public class Digitarq
     {
         private WebBrowser wb;
-        private int page;
+        private int pageIni;
+        private int pageFim;
         private string path;
         private Timer timer;
 
-        public Digitarq(WebBrowser wbf)
+        public Digitarq(string tempFolder, int pages)
         {
-            wb = wbf;
+            path = tempFolder;
+            pageIni = 1;
+            pageFim = pages;
         }
 
-
-        public void Download (string url)
+        public void LoadPage(string url)
         {
-            page = 1;
-            path = @"D:\arvore_genealogica\livros\pagina";
-            
             wb = new WebBrowser();
+            wb.DocumentCompleted += new WebBrowserDocumentCompletedEventHandler(webBrowser1_DocumentCompleted);
             wb.Navigate(url);
-            wb.DocumentCompleted +=  new WebBrowserDocumentCompletedEventHandler(GetHtml);            
         }
 
-        private void GetHtml(object sender, WebBrowserDocumentCompletedEventArgs e)
-        {            
-            timer = new Timer();
-            timer.Interval =10000 ;
-            timer.Tick += new EventHandler(TimerTick);
-            timer.Start();
-
-        }
-
-        private void TimerTick ( object sender, EventArgs e)
+        static async Task<string> WaitForElement()
         {
-            try
+            long startTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            int timeoutMS = 2500;
+
+            while (DateTimeOffset.Now.ToUnixTimeMilliseconds() - startTime < timeoutMS)
             {
-                string src = wb.Document.GetElementById("ViewerControl1_FramedPanelViewer_imgViewer_img").GetAttribute("src");
-                DownloadImage(src, path + page.ToString() + ".jpg");
-                page++;
+                await Task.Delay(TimeSpan.FromMilliseconds(500));
             }
-            catch(Exception er)
+            return "S";
+        }
+
+        private async void DownloadLivro()
+        {
+            while (pageIni <= pageFim)
             {
-                MessageBox.Show("FIM");
-                timer.Stop();
-                wb.Dispose();
+                for (int i = 0; i < 3; i++)
+                {
+                    try
+                    {
+                        string doc = "ViewerControl1_TreeViewFilesn" + pageIni.ToString();
+                        if (pageIni > 1)
+                            wb.Document.GetElementById(doc).InvokeMember("click");
+                        await WaitForElement();
+                        string src = wb.Document.GetElementById("ViewerControl1_FramedPanelViewer_imgViewer_img").GetAttribute("src");
+                        DownloadImage(src, path + pageIni.ToString() + ".jpg");
+
+                    }
+                    catch
+                    {
+                        int x = 0;
+                        //por vezes o site tem problemas com imagens que nao existem
+                    }
+                }
+                pageIni++;
             }
+            MessageBox.Show("Download Concluido");
+        }
+
+        private void webBrowser1_DocumentCompleted(object sender, WebBrowserDocumentCompletedEventArgs e)
+        {
+            DownloadLivro();
         }
 
         private void DownloadImage(string url, string path)
@@ -61,17 +79,6 @@ namespace GenealogiaPortuguesa
             using (WebClient client = new WebClient())
             {
                 client.DownloadFile(new Uri(url), path);
-            }
-            try
-            {
-                string doc = "ViewerControl1_TreeViewFilesn" + page.ToString();
-                wb.Document.GetElementById(doc).InvokeMember("click");
-            }
-            catch(Exception er)
-            {
-                MessageBox.Show("FIM");
-                timer.Stop();
-                wb.Dispose();
             }
         }
     }
