@@ -33,7 +33,7 @@ namespace GenealogiaPortuguesa
 
             if (url.Contains("digitarq.")&& url.Contains("/viewer?id="))
             {
-                Digitarq dg = new Digitarq(path, 10, ref toolStripStatusLabel1);
+                Digitarq dg = new Digitarq(path, (int)numericUpDown1.Value, ref toolStripStatusLabel1);
                 toolStripStatusLabel1.Text = "Download do livro em progresso. Aguarde por favor.";
                 dg.LoadPage(url);
             }
